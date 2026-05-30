@@ -2,51 +2,73 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BadgeCheck, ExternalLink } from 'lucide-react';
+import { ArrowRight, FlaskConical, Building2, Check } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
-import Chip from '@/components/ui/Chip';
 import Button from '@/components/ui/Button';
 import BetaTag from '@/components/ui/BetaTag';
-import { getProfile, saveProfile } from '@/lib/api-client';
-import type { Industry, UserProfile } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
+import { updateMe } from '@/lib/api-client';
+import { landingPath } from '@/lib/routing';
+import type { Role } from '@/lib/types';
 
-const INDUSTRIES: Industry[] = [
-  'Biotechnology',
-  'Clean Energy',
-  'Quantum Computing',
-  'Robotics',
-  'AI/ML',
+const MAX_BIO = 1000;
+
+const ROLE_CARDS: { role: Role; title: string; desc: string; icon: typeof FlaskConical }[] = [
+  {
+    role: 'researcher',
+    title: 'Researcher',
+    desc: 'I publish research and upload documents so companies can discover them.',
+    icon: FlaskConical,
+  },
+  {
+    role: 'company',
+    title: 'Company',
+    desc: 'I look for relevant research papers for my company’s projects and problems.',
+    icon: Building2,
+  },
 ];
-
-const MAX_BIO = 250;
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile>({
-    fullName: '',
-    primaryExpertise: '',
-    industry: 'Biotechnology',
-    bio: '',
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const { user, setUser } = useAuth();
 
+  const [role, setRole] = useState<Role>('researcher');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Seed the form from the current user once it's available.
   useEffect(() => {
-    getProfile()
-      .then((p) => setProfile(p))
-      .catch(() => {
-        /* mock first-load is fine to be empty */
-      });
-  }, []);
+    if (!user) return;
+    setRole(user.type);
+    setFirstName(user.firstName);
+    setLastName(user.lastName);
+    setDescription(user.description);
+  }, [user]);
+
+  const isOnboarding = user ? !user.onboarded : false;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
-      await saveProfile(profile);
-      router.push('/upload');
+      const updated = await updateMe({
+        type: role,
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+        description,
+        onboarded: true,
+      });
+      setUser(updated);
+      router.push(landingPath(updated));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save profile.');
     } finally {
       setSubmitting(false);
     }
@@ -54,129 +76,97 @@ export default function ProfilePage() {
 
   return (
     <AppShell>
-      {/* progress bar */}
-      <div className="mb-10">
-        <div className="mb-2 flex items-center justify-between text-[11px] font-medium uppercase tracking-wider text-muted">
-          <span>Setup Progress</span>
-          <span>65% Complete</span>
-        </div>
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-border">
-          <div className="h-full w-[65%] bg-ink" />
-        </div>
-      </div>
-
       <div className="mb-6 flex items-center gap-3">
         <BetaTag label="CORE_V1.0" />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight">Establish Your Scientific Identity</h1>
+      <h1 className="text-3xl font-bold tracking-tight">
+        {isOnboarding ? 'Welcome — set up your profile' : 'Your profile'}
+      </h1>
       <p className="mt-2 text-sm text-muted">
-        Your profile connects your research to global capital and peer collaboration networks.
+        Choose your role and complete your profile. You can change this anytime.
       </p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-6">
+        {/* Role selection */}
+        <div>
+          <span className="label">I am a …</span>
+          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {ROLE_CARDS.map(({ role: r, title, desc, icon: Icon }) => {
+              const active = role === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`relative rounded-xl2 border p-5 text-left transition-colors ${
+                    active
+                      ? 'border-ink bg-white shadow-card'
+                      : 'border-border bg-white/50 hover:border-ink/40'
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute right-4 top-4 grid h-5 w-5 place-items-center rounded-full bg-ink text-white">
+                      <Check size={12} />
+                    </span>
+                  )}
+                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-black/5">
+                    <Icon size={18} className="text-ink" />
+                  </div>
+                  <div className="mt-3 text-base font-semibold">{title}</div>
+                  <p className="mt-1 text-xs text-muted">{desc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <Card>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <Input
-              id="full-name"
-              label="Full Legal Name"
-              placeholder="Dr. Elena Volkova"
-              value={profile.fullName}
-              onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+              id="first-name"
+              label="First name"
+              placeholder="Elena"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
             />
             <Input
-              id="expertise"
-              label="Primary Expertise"
-              placeholder="Neural Network Compression"
-              value={profile.primaryExpertise}
-              onChange={(e) =>
-                setProfile({ ...profile, primaryExpertise: e.target.value })
-              }
+              id="last-name"
+              label="Last name"
+              placeholder="Volkova"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
             />
-          </div>
-
-          <div className="mt-5 space-y-2">
-            <span className="label">Industry Focus</span>
-            <div className="flex flex-wrap gap-2">
-              {INDUSTRIES.map((it) => (
-                <Chip
-                  key={it}
-                  active={profile.industry === it}
-                  onClick={() => setProfile({ ...profile, industry: it })}
-                >
-                  {it}
-                </Chip>
-              ))}
-            </div>
           </div>
 
           <div className="mt-5">
             <Textarea
-              id="bio"
-              label="Professional Bio"
-              placeholder="Briefly describe your research trajectory or startup's mission..."
-              value={profile.bio}
-              onChange={(e) =>
-                setProfile({ ...profile, bio: e.target.value.slice(0, MAX_BIO) })
+              id="description"
+              label={role === 'company' ? 'About your company' : 'About your research'}
+              placeholder={
+                role === 'company'
+                  ? 'What are you building, and which problems do you want research to solve?'
+                  : 'Briefly describe your research focus …'
               }
-              hint="Use high-impact technical keywords for better visibility in venture capital searches."
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_BIO))}
               rightSlot={
                 <span className="text-xs text-muted">
-                  {profile.bio.length} / {MAX_BIO}
+                  {description.length} / {MAX_BIO}
                 </span>
               }
             />
           </div>
 
-          <div className="mt-6 rounded-lg border border-border bg-canvas p-4">
-            <div className="flex items-center gap-2">
-              <BadgeCheck size={16} className="text-ink" />
-              <span className="text-sm font-semibold">Verify Credentials</span>
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              Connect your ORCID or LinkedIn to automatically verify your publications and history.
-            </p>
-            <a
-              href="#"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-ink underline underline-offset-4"
-            >
-              Link External Authority <ExternalLink size={12} />
-            </a>
-          </div>
+          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-          <div className="mt-8 flex items-center justify-between">
-            <button
-              type="button"
-              className="text-sm text-muted underline-offset-4 hover:underline"
-            >
-              Save draft for later
-            </button>
+          <div className="mt-8 flex items-center justify-end">
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Complete Profile'} <ArrowRight size={14} />
+              {submitting ? 'Saving…' : isOnboarding ? 'Continue' : 'Save changes'}{' '}
+              <ArrowRight size={14} />
             </Button>
           </div>
         </Card>
       </form>
-
-      <div className="mt-10 grid grid-cols-1 gap-6 text-sm md:grid-cols-3">
-        <div>
-          <div className="font-semibold">🛡 Privacy First</div>
-          <p className="mt-1 text-xs text-muted">
-            Your sensitive research data is encrypted and only visible to authorized collaborators.
-          </p>
-        </div>
-        <div>
-          <div className="font-semibold">🕸 Network Access</div>
-          <p className="mt-1 text-xs text-muted">
-            Complete profiles are 12x more likely to be contacted by Tier-1 venture funds.
-          </p>
-        </div>
-        <div>
-          <div className="font-semibold">❔ Need Help?</div>
-          <p className="mt-1 text-xs text-muted">
-            Our concierge team is available to assist with onboarding for university departments.
-          </p>
-        </div>
-      </div>
     </AppShell>
   );
 }

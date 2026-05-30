@@ -1,24 +1,7 @@
-import type { Paper, RecommendedPaper, UserProfile } from './types';
+import type { RecommendedPaper } from './types';
 
-export const mockProfile: UserProfile = {
-  fullName: 'Dr. Elena Volkova',
-  primaryExpertise: 'Neural Network Compression',
-  industry: 'Biotechnology',
-  bio: '',
-};
-
-export const mockPapers: Paper[] = [
-  {
-    id: 'p_001',
-    title: 'Efficient Transformer Pruning for Edge Inference',
-    authors: ['Sarah Jenkins', 'Mark Vance'],
-    abstract:
-      'A structured pruning regime that reduces transformer FLOPs by 64% while preserving downstream accuracy across QA, classification, and summarization benchmarks.',
-    fields: ['Quantum Computing', 'Deep Learning'],
-    completedAt: '2025-09-10',
-  },
-];
-
+// Sample corpus for the company-side matching. The real matching is handled by
+// a separate backend; until that's wired in, /api/recommend serves these.
 const SAMPLE_RESULTS: RecommendedPaper[] = [
   {
     id: 'p_101',
@@ -55,12 +38,9 @@ const SAMPLE_RESULTS: RecommendedPaper[] = [
   },
 ];
 
-export function mockRecommend(query: {
-  company: string;
-  description: string;
-}): RecommendedPaper[] {
+export function mockRecommend(query: { company: string; description: string }): RecommendedPaper[] {
   const seed = `${query.company} ${query.description}`.toLowerCase();
-  // 為了讓 demo 有點變化：根據 query 長度切前 N 篇
+  // Vary the demo output a little based on query length.
   const n = Math.max(1, Math.min(3, Math.ceil(seed.length / 40)));
   return SAMPLE_RESULTS.slice(0, n).map((p) => ({
     ...p,

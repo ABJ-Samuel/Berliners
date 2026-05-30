@@ -10,6 +10,7 @@ export function toUserDto(row) {
     lastName: row.last_name,
     description: row.description,
     type: row.type,
+    onboarded: row.onboarded,
     oauthProvider: row.oauth_provider,
     oauthProviderId: row.oauth_provider_id,
     avatarUrl: row.avatar_url,
@@ -50,12 +51,13 @@ export async function upsertOAuthUser(profile) {
 
 // Aktualisiert erlaubte Profilfelder. `fields` ist bereits validiert.
 export async function updateUser(id, fields) {
-  const allowed = ['firstName', 'lastName', 'description', 'type'];
+  const allowed = ['firstName', 'lastName', 'description', 'type', 'onboarded'];
   const columnMap = {
     firstName: 'first_name',
     lastName: 'last_name',
     description: 'description',
     type: 'type',
+    onboarded: 'onboarded',
   };
 
   const sets = [];

@@ -22,7 +22,8 @@ const updateSchema = z
     firstName: z.string().min(1).max(100).optional(),
     lastName: z.string().min(1).max(100).optional(),
     description: z.string().max(1000).optional(),
-    type: z.enum(['researcher', 'startup']).optional(),
+    type: z.enum(['researcher', 'company']).optional(),
+    onboarded: z.boolean().optional(),
   })
   .strict();
 

@@ -1,7 +1,15 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { landingPath } from '@/lib/routing';
 import BetaTag from '@/components/ui/BetaTag';
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/v1').replace(
+  /\/$/,
+  '',
+);
 
 function GoogleIcon() {
   return (
@@ -27,8 +35,19 @@ function GoogleIcon() {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  // Already signed in -> bounce into the app.
+  useEffect(() => {
+    if (!loading && user) router.replace(landingPath(user));
+  }, [user, loading, router]);
+
   const handleSignIn = () => {
-    void signIn('google', { callbackUrl: '/profile' });
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    window.location.href = `${API_BASE}/auth/oauth/google/login?redirectUri=${encodeURIComponent(
+      redirectUri,
+    )}`;
   };
 
   return (

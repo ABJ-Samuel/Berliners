@@ -59,6 +59,15 @@ export const config = {
 
   cookieSecret: secret('COOKIE_SECRET'),
 
+  // Erlaubte Origin(s) für Cross-Origin-Requests des Frontends (Bearer-Token-API).
+  // Komma-getrennte Liste möglich; Default: lokaler Next.js Dev-Server.
+  cors: {
+    origins: (process.env.CORS_ORIGIN ?? 'http://localhost:3001,http://localhost:3000')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+  },
+
   oauth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',

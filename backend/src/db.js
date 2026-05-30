@@ -29,7 +29,8 @@ const SCHEMA_SQL = `
     first_name       TEXT NOT NULL DEFAULT '',
     last_name        TEXT NOT NULL DEFAULT '',
     description      TEXT NOT NULL DEFAULT '',
-    type             TEXT NOT NULL DEFAULT 'researcher' CHECK (type IN ('researcher','startup')),
+    type             TEXT NOT NULL DEFAULT 'researcher' CHECK (type IN ('researcher','company')),
+    onboarded        BOOLEAN NOT NULL DEFAULT FALSE,
     oauth_provider   TEXT NOT NULL,
     oauth_provider_id TEXT NOT NULL,
     avatar_url       TEXT,
@@ -37,6 +38,13 @@ const SCHEMA_SQL = `
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (oauth_provider, oauth_provider_id)
   );
+
+  -- Idempotente Migrationen für bestehende DBs (CREATE TABLE IF NOT EXISTS ändert
+  -- bestehende Tabellen nicht). Rolle 'startup' -> 'company' und onboarded-Flag.
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarded BOOLEAN NOT NULL DEFAULT FALSE;
+  UPDATE users SET type = 'company' WHERE type = 'startup';
+  ALTER TABLE users DROP CONSTRAINT IF EXISTS users_type_check;
+  ALTER TABLE users ADD CONSTRAINT users_type_check CHECK (type IN ('researcher','company'));
 
   CREATE TABLE IF NOT EXISTS documents (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

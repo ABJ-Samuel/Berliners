@@ -56,7 +56,7 @@ export default function RecommendPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell requireRole="company">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-black/5">

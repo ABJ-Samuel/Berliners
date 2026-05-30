@@ -24,6 +24,23 @@ export function createApp() {
     next();
   });
 
+  // CORS für das Frontend (Bearer-Token-Auth, keine Cookies -> credentials nicht nötig).
+  // Spiegelt die Origin nur, wenn sie auf der Whitelist steht; beantwortet Preflights.
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && config.cors.origins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+      res.setHeader('Access-Control-Max-Age', '600');
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser(config.cookieSecret));
 

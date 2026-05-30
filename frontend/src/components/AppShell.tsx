@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, Settings, LogOut } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { landingPath } from '@/lib/routing';
+import type { Role } from '@/lib/types';
 
 interface NavItem {
   href: string;
@@ -12,29 +14,64 @@ interface NavItem {
   matches?: string[];
 }
 
-const NAV: NavItem[] = [
-  { href: '/recommend', label: 'Dashboard' },
-  { href: '/upload', label: 'Upload', matches: ['/upload', '/profile'] },
-  { href: '#', label: 'Library' },
-  { href: '#', label: 'Archive' },
-];
+const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  researcher: [
+    { href: '/upload', label: 'My Documents' },
+    { href: '/profile', label: 'Profile' },
+  ],
+  company: [
+    { href: '/recommend', label: 'Find Papers' },
+    { href: '/profile', label: 'Profile' },
+  ],
+};
 
-export default function AppShell({ children }: { children: ReactNode }) {
+export default function AppShell({
+  children,
+  requireRole,
+}: {
+  children: ReactNode;
+  requireRole?: Role;
+}) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Client-side route guard.
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    // Enforce role on role-specific pages (but let users finish onboarding).
+    if (requireRole && user.onboarded && user.type !== requireRole) {
+      router.replace(landingPath(user));
+    }
+  }, [user, loading, requireRole, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-canvas text-sm text-muted">
+        Loading…
+      </div>
+    );
+  }
+
+  const nav = NAV_BY_ROLE[user.type];
+  const displayName = `${user.firstName} ${user.lastName}`.trim() || user.email;
 
   return (
     <div className="min-h-screen bg-canvas">
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-10">
-            <Link href="/recommend" className="text-lg font-bold tracking-tight">
+            <Link href={landingPath(user)} className="text-lg font-bold tracking-tight">
               ScholarLab
             </Link>
             <nav className="flex items-center gap-6">
-              {NAV.map((item) => {
-                const matchers = item.matches ?? (item.href === '#' ? [] : [item.href]);
+              {nav.map((item) => {
+                const matchers = item.matches ?? [item.href];
                 const active = matchers.some((m) => pathname?.startsWith(m));
                 return (
                   <Link
@@ -54,6 +91,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            <span className="hidden rounded-full border border-border bg-canvas px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted sm:inline">
+              {user.type}
+            </span>
             <button className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-black/5 hover:text-ink">
               <Bell size={16} />
             </button>
@@ -66,22 +106,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-border bg-black/5"
                 aria-label="account"
               >
-                {session?.user?.image ? (
+                {user.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={session.user.image} alt="avatar" className="h-full w-full object-cover" />
+                  <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-xs font-semibold text-muted">
-                    {session?.user?.name?.[0] ?? '·'}
+                    {displayName[0]?.toUpperCase() ?? '·'}
                   </span>
                 )}
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-lg border border-border bg-white shadow-card">
-                  <div className="border-b border-border px-3 py-2 text-xs text-muted">
-                    {session?.user?.email ?? 'guest'}
+                <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-white shadow-card">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="truncate text-sm font-medium text-ink">{displayName}</div>
+                    <div className="truncate text-xs text-muted">{user.email}</div>
                   </div>
                   <button
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={async () => {
+                      await logout();
+                      router.replace('/login');
+                    }}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5"
                   >
                     <LogOut size={14} /> Sign out
