@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+
+
+# Runtime PDF uploads (LocalStorageService / STORAGE_DIR)
+storage/
