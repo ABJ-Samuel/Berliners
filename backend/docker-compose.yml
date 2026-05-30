@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-appuser}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Port nur lokal nach außen geben (optional, fürs Debugging).
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Im Compose-Netz heißt der DB-Host immer "db".
+      POSTGRES_HOST: db
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # Lokaler File Storage für Uploads als Docker Volume.
+      - uploads:/app/uploads
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,0 +1,633 @@
+openapi: 3.0.3
+info:
+  title: OAuth User & Document API
+  version: 1.1.0
+  description: >
+    API zur OAuth-basierten Authentifizierung und Verwaltung von User-Dokumenten.
+    User können entweder researcher oder startup sein und mehrere Dokumente hochladen.
+    Die Anmeldung erfolgt über OAuth 2.0 / OpenID Connect. Eine echte UI ist nicht Teil dieser API.
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: http://localhost:3000/v1
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: OAuth Login, Callback, Session und Token Handling
+  - name: Users
+    description: User-Profilverwaltung
+  - name: Documents
+    description: Dokumente hochladen, anzeigen und löschen
+
+security:
+  - oauth2: []
+
+paths:
+  /auth/oauth/{provider}/login:
+    get:
+      tags:
+        - Auth
+      summary: OAuth Login starten
+      description: >
+        Startet den OAuth Login Flow für den gewählten Provider.
+        Die API leitet den User zum OAuth Provider weiter.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+        - name: redirectUri
+          in: query
+          required: false
+          description: Optionale Redirect URI nach erfolgreichem Login.
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect zum OAuth Provider.
+        '400':
+          description: Ungültiger OAuth Provider oder ungültige Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/oauth/{provider}/callback:
+    get:
+      tags:
+        - Auth
+      summary: OAuth Callback verarbeiten
+      description: >
+        Callback-Endpunkt für den OAuth Provider.
+        Tauscht den Authorization Code gegen Tokens, erstellt oder aktualisiert den User
+        und gibt die Session-/Token-Daten zurück.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+        - name: code
+          in: query
+          required: true
+          description: Authorization Code des OAuth Providers.
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          description: State-Wert zum Schutz vor CSRF.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OAuth Login erfolgreich.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthAuthResponse'
+        '302':
+          description: Optionaler Redirect zur Testseite oder späteren UI.
+        '400':
+          description: OAuth Callback ungültig.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: OAuth Authentifizierung fehlgeschlagen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: User ausloggen
+      description: Beendet die aktuelle Session oder invalidiert den aktuellen Access Token.
+      responses:
+        '204':
+          description: Logout erfolgreich.
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Access Token erneuern
+      description: Erstellt mit einem Refresh Token einen neuen Access Token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Neuer Access Token wurde erstellt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Ungültiger oder abgelaufener Refresh Token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Aktuelle Auth-Session abrufen
+      description: Gibt Informationen zur aktuellen authentifizierten Session zurück.
+      responses:
+        '200':
+          description: Session erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Eigenes Profil abrufen
+      description: Gibt das Profil des aktuell authentifizierten Users zurück.
+      responses:
+        '200':
+          description: Profil erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags:
+        - Users
+      summary: Eigenes Profil aktualisieren
+      description: >
+        Aktualisiert Profilinformationen des aktuell authentifizierten Users.
+        E-Mail und OAuth Provider ID kommen vom OAuth Provider und sollten nicht direkt geändert werden.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Profil erfolgreich aktualisiert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Ungültige Eingabedaten.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents:
+    get:
+      tags:
+        - Documents
+      summary: Eigene Dokumente abrufen
+      description: Gibt alle Dokumente des aktuell authentifizierten Users zurück.
+      responses:
+        '200':
+          description: Dokumente erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Documents
+      summary: Dokument hochladen
+      description: Lädt ein neues Dokument für den aktuell authentifizierten User hoch.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadDocumentRequest'
+      responses:
+        '201':
+          description: Dokument erfolgreich hochgeladen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          description: Ungültige Datei oder Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Datei ist zu groß.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents/{documentId}:
+    get:
+      tags:
+        - Documents
+      summary: Einzelnes Dokument abrufen
+      description: Gibt Metadaten zu einem bestimmten Dokument zurück.
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Dokument erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Kein Zugriff auf dieses Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Dokument nicht gefunden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Documents
+      summary: Dokument löschen
+      description: Löscht ein Dokument des aktuell authentifizierten Users.
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '204':
+          description: Dokument erfolgreich gelöscht.
+        '401':
+          description: Nicht authentifiziert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Kein Zugriff auf dieses Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Dokument nicht gefunden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: OAuth 2.0 Authorization Code Flow mit OpenID Connect.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            openid: OpenID Connect Login
+            email: Zugriff auf die E-Mail-Adresse
+            profile: Zugriff auf Profilinformationen
+
+  parameters:
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      description: OAuth Provider.
+      schema:
+        type: string
+        enum:
+          - google
+          - github
+          - microsoft
+      example: google
+
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      description: Eindeutige ID des Dokuments.
+      schema:
+        type: string
+        format: uuid
+      example: 9f4f03b2-11c7-4d45-88a8-3cdd9b4572a1
+
+  schemas:
+    UserType:
+      type: string
+      enum:
+        - researcher
+        - startup
+      example: researcher
+
+    OAuthProvider:
+      type: string
+      enum:
+        - google
+        - github
+        - microsoft
+      example: google
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - description
+        - type
+        - oauthProvider
+        - oauthProviderId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3b7c4a9e-1e6b-4d88-a7c7-9c6f6c89f9a2
+        email:
+          type: string
+          format: email
+          example: max@example.com
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Max
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Mustermann
+        description:
+          type: string
+          maxLength: 1000
+          example: Researcher im Bereich KI und Gesundheitsdaten.
+        type:
+          $ref: '#/components/schemas/UserType'
+        oauthProvider:
+          $ref: '#/components/schemas/OAuthProvider'
+        oauthProviderId:
+          type: string
+          description: Eindeutige User-ID des OAuth Providers.
+          example: '118293847562938475629'
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://lh3.googleusercontent.com/a/avatar
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-05-30T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-05-30T12:00:00Z'
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Max
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Mustermann
+        description:
+          type: string
+          maxLength: 1000
+          example: Aktualisierte Beschreibung.
+        type:
+          $ref: '#/components/schemas/UserType'
+
+    OAuthAuthResponse:
+      type: object
+      required:
+        - user
+        - accessToken
+        - refreshToken
+        - tokenType
+        - expiresIn
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          description: API Access Token für geschützte Requests.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          description: API Refresh Token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Ablaufzeit des Access Tokens in Sekunden.
+          example: 3600
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 3600
+
+    AuthSession:
+      type: object
+      required:
+        - authenticated
+        - user
+      properties:
+        authenticated:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/User'
+
+    UploadDocumentRequest:
+      type: object
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Hochzuladende Datei.
+        title:
+          type: string
+          maxLength: 255
+          description: Optionaler Dokumenttitel.
+          example: Pitch Deck
+        description:
+          type: string
+          maxLength: 1000
+          description: Optionale Dokumentbeschreibung.
+          example: Aktuelles Startup Pitch Deck.
+
+    Document:
+      type: object
+      required:
+        - id
+        - userId
+        - fileName
+        - mimeType
+        - size
+        - storageKey
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Eindeutige Dokumenten-ID.
+          example: 9f4f03b2-11c7-4d45-88a8-3cdd9b4572a1
+        userId:
+          type: string
+          format: uuid
+          description: ID des Users, dem das Dokument gehört.
+          example: 3b7c4a9e-1e6b-4d88-a7c7-9c6f6c89f9a2
+        title:
+          type: string
+          nullable: true
+          example: Pitch Deck
+        description:
+          type: string
+          nullable: true
+          example: Aktuelles Startup Pitch Deck.
+        fileName:
+          type: string
+          example: pitch-deck.pdf
+        mimeType:
+          type: string
+          example: application/pdf
+        size:
+          type: integer
+          description: Dateigröße in Bytes.
+          example: 245760
+        storageKey:
+          type: string
+          description: Interner Speicherpfad oder Storage Key.
+          example: documents/3b7c4a9e/pitch-deck.pdf
+        url:
+          type: string
+          format: uri
+          nullable: true
+          description: Optionale Download-URL, falls öffentlich oder signiert verfügbar.
+          example: http://localhost:3000/uploads/pitch-deck.pdf
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-05-30T12:00:00Z'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+      properties:
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Die Anfrage enthält ungültige Daten.
+        statusCode:
+          type: integer
+          example: 400
