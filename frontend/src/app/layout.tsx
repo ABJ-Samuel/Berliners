@@ -3,8 +3,8 @@ import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ScholarLab — Paper Match',
-  description: 'Precision academic discovery',
+  title: 'SpinFork',
+  description: "Liberating Berlin's Deep Tech",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { landingPath } from '@/lib/routing';
-import BetaTag from '@/components/ui/BetaTag';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/v1').replace(
   /\/$/,
@@ -53,14 +52,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-16">
-        <div className="mb-6">
-          <BetaTag />
+        <div className="mb-8 flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="SpinFork — Liberating Berlin's Deep Tech"
+            className="w-56 rounded-xl2 shadow-card"
+          />
         </div>
 
         <div className="w-full rounded-xl2 border border-border bg-white p-8 shadow-card">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Paper Match</h1>
-            <p className="mt-1 text-sm text-muted">Precision academic discovery</p>
+            <h1 className="text-2xl font-bold tracking-tight">Sign in to SpinFork</h1>
+            <p className="mt-1 text-sm text-muted">Liberating Berlin&apos;s Deep Tech</p>
           </div>
 
           <p className="mb-5 text-center text-sm text-muted">
@@ -80,13 +84,13 @@ export default function LoginPage() {
 
           <div className="text-center">
             <p className="text-xs text-muted">
-              By continuing you agree to ScholarLab&apos;s research and privacy terms.
+              By continuing you agree to SpinFork&apos;s research and privacy terms.
             </p>
           </div>
         </div>
 
         <div className="mt-10 text-center text-[11px] text-muted">
-          © 2024 ScholarLab Research Systems. All rights reserved.
+          © 2024 SpinFork. Liberating Berlin&apos;s Deep Tech.
         </div>
       </div>
     </div>

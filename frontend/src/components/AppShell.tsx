@@ -66,8 +66,9 @@ export default function AppShell({
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-10">
-            <Link href={landingPath(user)} className="text-lg font-bold tracking-tight">
-              ScholarLab
+            <Link href={landingPath(user)} className="flex items-center" aria-label="SpinFork home">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="SpinFork" className="h-11 w-auto rounded-md object-contain" />
             </Link>
             <nav className="flex items-center gap-6">
               {nav.map((item) => {
@@ -140,7 +141,7 @@ export default function AppShell({
       <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>
 
       <footer className="mx-auto max-w-6xl px-6 py-8 text-center text-xs text-muted">
-        © 2024 ScholarLab Research Systems. All rights reserved.
+        © 2024 SpinFork. Liberating Berlin&apos;s Deep Tech.
       </footer>
     </div>
   );

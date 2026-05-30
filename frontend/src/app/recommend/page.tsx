@@ -63,7 +63,7 @@ export default function RecommendPage() {
             <FileText size={18} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Paper Match</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Find Papers</h1>
             <p className="mt-1 max-w-xl text-sm text-muted">
               Tell us your company and project — get the most relevant research papers,
               automatically.
@@ -202,7 +202,7 @@ export default function RecommendPage() {
       </section>
 
       <footer className="mt-10 flex items-center justify-between text-xs text-muted">
-        <span>© 2024 ScholarLab Research Systems</span>
+        <span>© 2024 SpinFork</span>
         <div className="flex gap-4">
           <a href="#" className="hover:text-ink">Documentation</a>
           <a href="#" className="hover:text-ink">API</a>
